@@ -1,177 +1,224 @@
 package com.example.student_registration.Service;
 
-import com.example.student_registration.entity.Student;
-import com.example.student_registration.repository.StudentRepository;
+import com.example.student_registration.DTO.StudentRequestDTO;
+import com.example.student_registration.DTO.StudentResponseDTO;
+import com.example.student_registration.controller.StudentController;
 import com.example.student_registration.service.StudentService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
-class StudentServiceTest {
+@WebMvcTest(StudentController.class)
+class StudentControllerTest {
 
-    @Mock
-    private StudentRepository studentRepository;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @InjectMocks
+    @MockitoBean
     private StudentService studentService;
 
 
-    // 1. CREATE STUDENT
+    // CREATE
+
     @Test
-    void testCreateStudent() {
+    void createStudent_shouldReturnCreated_whenRequestIsValid()
+            throws Exception {
 
-        Student student = new Student();
-        student.setName("John");
-        student.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        student.setGender("Male");
-
-        when(studentRepository.save(student)).thenReturn(student);
-
-        Student result = studentService.createStudent(student);
-
-        assertEquals("John", result.getName());
-        assertEquals("Male", result.getGender());
-
-        verify(studentRepository).save(student);
-    }
-
-
-    // 2. GET BY ID - Student exists
-    @Test
-    void testGetStudentById() {
-
-        Student student = new Student();
-        student.setName("John");
-        student.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        student.setGender("Male");
-
-        when(studentRepository.findById(1L))
-                .thenReturn(Optional.of(student));
-
-        Student result = studentService.getStudentById(1L);
-
-        assertEquals("John", result.getName());
-        assertEquals("Male", result.getGender());
-
-        verify(studentRepository).findById(1L);
-    }
-
-
-    // 3. GET BY ID - Student does not exist
-    @Test
-    void testGetStudentByIdWhenStudentDoesNotExist() {
-
-        when(studentRepository.findById(1L))
-                .thenReturn(Optional.empty());
-
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> studentService.getStudentById(1L)
+        StudentRequestDTO request = new StudentRequestDTO();
+        request.setStudentId(101);
+        request.setName("John");
+        request.setDateOfBirth(
+                LocalDate.of(2015, 5, 10)
         );
+        request.setGender("Male");
 
-        assertEquals("Student not found with given id: 1", exception.getMessage());
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
 
-        verify(studentRepository).findById(1L);
-    }
+        when(studentService.createStudent(any(StudentRequestDTO.class)))
+                .thenReturn(response);
 
+        mockMvc.perform(
+                        post("/student-registration/student")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "studentId": 101,
+                                          "name": "John",
+                                          "dateOfBirth": "2015-05-10",
+                                          "gender": "Male"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName").value("John"))
+                .andExpect(jsonPath("$.gender").value("Male"));
 
-    // 4. GET ALL
-    @Test
-    void testGetAllStudents() {
-
-        Student student1 = new Student();
-        student1.setName("John");
-
-        Student student2 = new Student();
-        student2.setName("David");
-
-        when(studentRepository.findAll())
-                .thenReturn(List.of(student1, student2));
-
-        List<Student> result = studentService.getAllStudents();
-
-        assertEquals(2, result.size());
-        assertEquals("John", result.get(0).getName());
-        assertEquals("David", result.get(1).getName());
-
-        verify(studentRepository).findAll();
-    }
-
-
-    // 5. UPDATE
-    @Test
-    void testUpdateStudent() {
-
-        Student existingStudent = new Student();
-        existingStudent.setName("John");
-        existingStudent.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        existingStudent.setGender("Male");
-
-        Student studentDetails = new Student();
-        studentDetails.setName("John Updated");
-        studentDetails.setDateOfBirth(LocalDate.of(2016, 6, 15));
-        studentDetails.setGender("Male");
-
-        when(studentRepository.findById(1L))
-                .thenReturn(Optional.of(existingStudent));
-
-        when(studentRepository.save(existingStudent))
-                .thenReturn(existingStudent);
-
-        Student result = studentService.updateStudent(1L, studentDetails);
-
-        assertEquals("John Updated", result.getName());
-        assertEquals(
-                LocalDate.of(2016, 6, 15),
-                result.getDateOfBirth()
+        verify(studentService).createStudent(
+                any(StudentRequestDTO.class)
         );
-        assertEquals("Male", result.getGender());
-
-        verify(studentRepository).findById(1L);
-        verify(studentRepository).save(existingStudent);
     }
 
 
-    // 6. UPDATE - Student does not exist
+    // GET
+
     @Test
-    void testUpdateStudentWhenStudentDoesNotExist() {
+    void getStudentById_shouldReturnStudent_whenStudentExists()
+            throws Exception {
 
-        Student studentDetails = new Student();
-        studentDetails.setName("John Updated");
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
 
-        when(studentRepository.findById(1L))
-                .thenReturn(Optional.empty());
+        when(studentService.getStudentById(101))
+                .thenReturn(response);
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> studentService.updateStudent(1L, studentDetails)
+        mockMvc.perform(
+                        get("/student-registration/101")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName").value("John"))
+                .andExpect(jsonPath("$.dateOfBirth")
+                        .value("2015-05-10"))
+                .andExpect(jsonPath("$.gender").value("Male"));
+
+        verify(studentService).getStudentById(101);
+    }
+
+
+    // GET INVALID ID
+
+    @Test
+    void getStudentById_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
+
+        mockMvc.perform(
+                        get("/student-registration/0")
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(studentService);
+    }
+
+
+    // UPDATE
+
+    @Test
+    void updateStudent_shouldReturnUpdatedStudent_whenRequestIsValid()
+            throws Exception {
+
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John Updated",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
+
+        when(studentService.updateStudent(
+                eq(101),
+                any(StudentRequestDTO.class)
+        )).thenReturn(response);
+
+        mockMvc.perform(
+                        patch("/student-registration/101")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "studentId": 101,
+                                          "name": "John Updated",
+                                          "dateOfBirth": "2015-05-10",
+                                          "gender": "Male"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName")
+                        .value("John Updated"))
+                .andExpect(jsonPath("$.gender").value("Male"));
+
+        verify(studentService).updateStudent(
+                eq(101),
+                any(StudentRequestDTO.class)
         );
-
-        assertEquals("Student not found with given id: 1", exception.getMessage());
-
-        verify(studentRepository).findById(1L);
-        verify(studentRepository, never()).save(any());
     }
 
 
-    // 7. DELETE
+    // UPDATE INVALID ID
+
     @Test
-    void testDeleteStudent() {
+    void updateStudent_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
 
-        doNothing().when(studentRepository).deleteById(1L);
+        mockMvc.perform(
+                        patch("/student-registration/0")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "studentId": 0,
+                                          "name": "John",
+                                          "dateOfBirth": "2015-05-10",
+                                          "gender": "Male"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest());
 
-        studentService.deleteStudent(1L);
+        verifyNoInteractions(studentService);
+    }
 
-        verify(studentRepository).deleteById(1L);
+
+    // DELETE
+
+    @Test
+    void deleteStudent_shouldReturnNoContent_whenStudentExists()
+            throws Exception {
+
+        doNothing()
+                .when(studentService)
+                .deleteStudent(101);
+
+        mockMvc.perform(
+                        delete("/student-registration/101")
+                )
+                .andExpect(status().isNoContent());
+
+        verify(studentService).deleteStudent(101);
+    }
+
+
+    // DELETE INVALID ID
+
+    @Test
+    void deleteStudent_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
+
+        mockMvc.perform(
+                        delete("/student-registration/0")
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(studentService);
     }
 }

@@ -1,48 +1,149 @@
 package com.example.student_registration.service;
 
+import com.example.student_registration.DTO.StudentRequestDTO;
+import com.example.student_registration.DTO.StudentResponseDTO;
+import com.example.student_registration.exception.BadRequestException;
+import com.example.student_registration.exception.ResourceNotFoundException;
 import com.example.student_registration.entity.Student;
 import com.example.student_registration.repository.StudentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.student_registration.repository.StudentRepository;
-
-import java.util.List;
 
 @Service
 public class StudentService {
-    @Autowired
-    private StudentRepository studentRepository;
 
-    public Student createStudent(Student student) {
+    private final StudentRepository studentRepository;
 
-        return studentRepository.save(student);
+    public StudentService(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
     }
 
-    public Student getStudentById(Long id) {
+    // CREATE STUDENT
+    public StudentResponseDTO createStudent(StudentRequestDTO request) {
 
-        return studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with given id: " + id));
-    }
-
-    public List<Student> getAllStudents() {
-        return studentRepository.findAll();
-    }
-
-    public Student updateStudent(Long id, Student studentInfo) {
-        Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with given id: " + id));
-        student.setName(studentInfo.getName());
-        student.setGender(studentInfo.getGender());
-        student.setDateOfBirth(studentInfo.getDateOfBirth());
-        return studentRepository.save(student);
-
-    }
-
-    public void deleteStudent(Long id) {
-        try {
-            studentRepository.deleteById(id);
-        } catch (Exception e) {
-            throw new RuntimeException("Student not found with id: " + id);
+        if (request == null) {
+            throw new BadRequestException(
+                    "Student request is required"
+            );
         }
+
+        // Student ID must be unique
+        if (studentRepository.existsById(request.getStudentId())) {
+            throw new BadRequestException(
+                    "Student ID " + request.getStudentId()
+                            + " already exists"
+            );
+        }
+
+        Student student = new Student();
+
+        student.setStudentId(request.getStudentId());
+        student.setName(request.getName());
+        student.setDateOfBirth(request.getDateOfBirth());
+        student.setGender(request.getGender());
+
+        Student savedStudent =
+                studentRepository.save(student);
+
+        return convertToResponseDTO(savedStudent);
+    }
+
+
+    // GET STUDENT BY ID
+    public StudentResponseDTO getStudentById(Integer studentId) {
+
+        if (studentId == null) {
+            throw new BadRequestException(
+                    "Student ID is required"
+            );
+        }
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Student not found with ID "
+                                        + studentId
+                        )
+                );
+
+        return convertToResponseDTO(student);
+    }
+
+
+    // UPDATE STUDENT
+    public StudentResponseDTO updateStudent(
+            Integer studentId,
+            StudentRequestDTO request) {
+
+        if (studentId == null) {
+            throw new BadRequestException(
+                    "Student ID is required"
+            );
+        }
+
+        if (request == null) {
+            throw new BadRequestException(
+                    "Student request is required"
+            );
+        }
+
+        Student existingStudent =
+                studentRepository.findById(studentId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Student not found with ID "
+                                                + studentId
+                                )
+                        );
+
+        // Student ID cannot be changed
+        if (!studentId.equals(request.getStudentId())) {
+            throw new BadRequestException(
+                    "Student ID cannot be changed"
+            );
+        }
+
+        // Update fields
+        existingStudent.setName(request.getName());
+        existingStudent.setDateOfBirth(
+                request.getDateOfBirth()
+        );
+        existingStudent.setGender(request.getGender());
+
+        Student updatedStudent =
+                studentRepository.save(existingStudent);
+
+        return convertToResponseDTO(updatedStudent);
+    }
+
+
+    // DELETE STUDENT
+    public void deleteStudent(Integer studentId) {
+
+        if (studentId == null) {
+            throw new BadRequestException(
+                    "Student ID is required"
+            );
+        }
+
+        if (!studentRepository.existsById(studentId)) {
+            throw new ResourceNotFoundException(
+                    "Student not found with ID " + studentId
+            );
+        }
+
+        studentRepository.deleteById(studentId);
+    }
+
+
+    // ENTITY TO RESPONSE DTO
+    private StudentResponseDTO convertToResponseDTO(
+            Student student) {
+
+        return new StudentResponseDTO(
+                student.getStudentId(),
+                student.getName(),
+                student.getDateOfBirth(),
+                student.getGender()
+        );
     }
 }

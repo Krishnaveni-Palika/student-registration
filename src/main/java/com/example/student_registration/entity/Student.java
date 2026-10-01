@@ -1,27 +1,30 @@
 package com.example.student_registration.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
 @Getter
 @Setter
 @Entity
+@Table(name = "student")
 public class Student {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @NotBlank
-    private String name;
-    @NotNull
-    private LocalDate dateOfBirth;
-    @NotBlank
-    private String gender;
 
+    @Id
+    @Column(name = "student_id")
+    private Integer studentId;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender")
+    private String gender;
 }

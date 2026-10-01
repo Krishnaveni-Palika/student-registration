@@ -1,50 +1,81 @@
 package com.example.student_registration.controller;
 
-import com.example.student_registration.entity.Student;
+import com.example.student_registration.DTO.StudentRequestDTO;
+import com.example.student_registration.DTO.StudentResponseDTO;
+import com.example.student_registration.service.StudentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import com.example.student_registration.service.StudentService;
 
-@Tag(name = "Student API", description = "APIs for student registration")
+@Tag(
+        name = "Student API",
+        description = "APIs for student registration"
+)
 @RestController
-@RequestMapping("/student")
+@RequestMapping("/student-registration")
+@Validated
 public class StudentController {
-    @Autowired
-    private StudentService studentService;
 
-    @PostMapping("/createStudent")
-    public Student createStudent(@Valid @RequestBody Student student) {
-        return studentService.createStudent(student);
+    private final StudentService studentService;
+
+    public StudentController(StudentService studentService) {
+        this.studentService = studentService;
     }
 
-    @GetMapping("/getStudentById/{id}")
-    public Student getStudentById(@PathVariable Long id) {
-        if (id <= 0) {
-            throw new IllegalArgumentException("Student ID must be greater than 0");
-        }
-        return studentService.getStudentById(id);
+    // CREATE STUDENT
+    @PostMapping("/student")
+    public ResponseEntity<StudentResponseDTO> createStudent(
+            @Valid @RequestBody StudentRequestDTO request) {
+
+        StudentResponseDTO response =
+                studentService.createStudent(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 
-    @PutMapping("/updateStudent/{id}")
-    public Student updateStudent(@PathVariable Long id, @Valid @RequestBody Student student) {
-        if (id <= 0) {
-            throw new IllegalArgumentException(
-                    "Student ID must be greater than 0"
-            );
-        }
-        return studentService.updateStudent(id, student);
+    // GET STUDENT BY ID
+    @GetMapping("/{studentId}")
+    public ResponseEntity<StudentResponseDTO> getStudentById(
+            @PathVariable
+            @Positive(message = "Student ID must be greater than 0")
+            Integer studentId) {
+
+        StudentResponseDTO response =
+                studentService.getStudentById(studentId);
+
+        return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/deleteStudent/{id}")
-    public void deleteStudent(@Positive @PathVariable Long id) {
-        if (id <= 0) {
-            throw new IllegalArgumentException(
-                    "Student ID must be greater than 0"
-            );
-        }
-        studentService.deleteStudent(id);
+    // UPDATE STUDENT
+    @PatchMapping("/{studentId}")
+    public ResponseEntity<StudentResponseDTO> updateStudent(
+            @PathVariable
+            @Positive(message = "Student ID must be greater than 0")
+            Integer studentId,
+
+            @Valid @RequestBody StudentRequestDTO request) {
+
+        StudentResponseDTO response =
+                studentService.updateStudent(studentId, request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // DELETE STUDENT
+    @DeleteMapping("/{studentId}")
+    public ResponseEntity<Void> deleteStudent(
+            @PathVariable
+            @Positive(message = "Student ID must be greater than 0")
+            Integer studentId) {
+
+        studentService.deleteStudent(studentId);
+
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,116 +1,236 @@
 package com.example.student_registration.Controller;
 
+import com.example.student_registration.DTO.StudentRequestDTO;
+import com.example.student_registration.DTO.StudentResponseDTO;
 import com.example.student_registration.controller.StudentController;
-import com.example.student_registration.entity.Student;
+import com.example.student_registration.exception.GlobalExceptionHandler;
 import com.example.student_registration.service.StudentService;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 
 import static org.mockito.Mockito.*;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(StudentController.class)
+@Import(GlobalExceptionHandler.class)
 class StudentControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @MockitoBean
     private StudentService studentService;
 
-    @InjectMocks
-    private StudentController studentController;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @BeforeEach
-    void setup() {
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(studentController)
-                .build();
-    }
+    // CREATE STUDENT
 
     @Test
-    void createStudentTest() throws Exception {
+    void createStudent_shouldReturnCreated_whenRequestIsValid()
+            throws Exception {
 
-        Student student = new Student();
-        student.setName("John");
-        student.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        student.setGender("Male");
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
 
-        when(studentService.createStudent(any(Student.class)))
-                .thenReturn(student);
+        when(studentService.createStudent(any(StudentRequestDTO.class)))
+                .thenReturn(response);
 
-        mockMvc.perform(post("/student/createStudent")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(student)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("John"))
-                .andExpect(jsonPath("$.gender").value("Male"));
-
-        verify(studentService).createStudent(any(Student.class));
-    }
-
-    @Test
-    void getStudentByIdReturnStudentTest() throws Exception {
-
-        Student student = new Student();
-        student.setName("John");
-        student.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        student.setGender("Male");
-
-        when(studentService.getStudentById(1L))
-                .thenReturn(student);
-
-        mockMvc.perform(get("/student/getStudentById/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("John"))
-                .andExpect(jsonPath("$.gender").value("Male"));
-
-        verify(studentService).getStudentById(1L);
-    }
-
-    @Test
-    void updateStudentReturnUpdatedStudentTest() throws Exception {
-
-        Student student = new Student();
-        student.setName("John Updated");
-        student.setDateOfBirth(LocalDate.of(2016, 5, 10));
-        student.setGender("Male");
-
-        when(studentService.updateStudent(eq(1L), any(Student.class)))
-                .thenReturn(student);
-
-        mockMvc.perform(put("/student/updateStudent/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(student)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("John Updated"))
+        mockMvc.perform(
+                        post("/student-registration/student")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                      "studentId": 101,
+                                      "name": "John",
+                                      "dateOfBirth": "2015-05-10",
+                                      "gender": "Male"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName").value("John"))
+                .andExpect(jsonPath("$.dateOfBirth")
+                        .value("2015-05-10"))
                 .andExpect(jsonPath("$.gender").value("Male"));
 
         verify(studentService)
-                .updateStudent(eq(1L), any(Student.class));
+                .createStudent(any(StudentRequestDTO.class));
     }
 
+
     @Test
-    void deleteStudentDeletesStudentTest() throws Exception {
+    void createStudent_shouldReturnBadRequest_whenRequestIsInvalid()
+            throws Exception {
 
-        doNothing().when(studentService).deleteStudent(1L);
+        mockMvc.perform(
+                        post("/student-registration/student")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                    }
+                                    """)
+                )
+                .andExpect(status().isBadRequest());
 
-        mockMvc.perform(delete("/student/deleteStudent/1"))
-                .andExpect(status().isOk());
+        verifyNoInteractions(studentService);
+    }
 
-        verify(studentService).deleteStudent(1L);
+
+    // GET STUDENT
+
+    @Test
+    void getStudentById_shouldReturnStudent_whenStudentExists()
+            throws Exception {
+
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
+
+        when(studentService.getStudentById(101))
+                .thenReturn(response);
+
+        mockMvc.perform(
+                        get("/student-registration/101")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName").value("John"))
+                .andExpect(jsonPath("$.dateOfBirth")
+                        .value("2015-05-10"))
+                .andExpect(jsonPath("$.gender").value("Male"));
+
+        verify(studentService)
+                .getStudentById(101);
+    }
+
+
+    @Test
+    void getStudentById_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
+
+        mockMvc.perform(
+                        get("/student-registration/0")
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(studentService);
+    }
+
+
+    // UPDATE STUDENT
+
+    @Test
+    void updateStudent_shouldReturnUpdatedStudent_whenRequestIsValid()
+            throws Exception {
+
+        StudentResponseDTO response =
+                new StudentResponseDTO(
+                        101,
+                        "John Updated",
+                        LocalDate.of(2015, 5, 10),
+                        "Male"
+                );
+
+        when(studentService.updateStudent(
+                eq(101),
+                any(StudentRequestDTO.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(
+                        patch("/student-registration/101")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                      "studentId": 101,
+                                      "name": "John Updated",
+                                      "dateOfBirth": "2015-05-10",
+                                      "gender": "Male"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentId").value(101))
+                .andExpect(jsonPath("$.studentName")
+                        .value("John Updated"))
+                .andExpect(jsonPath("$.dateOfBirth")
+                        .value("2015-05-10"))
+                .andExpect(jsonPath("$.gender").value("Male"));
+
+        verify(studentService)
+                .updateStudent(
+                        eq(101),
+                        any(StudentRequestDTO.class));
+    }
+
+
+    @Test
+    void updateStudent_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
+
+        mockMvc.perform(
+                        patch("/student-registration/0")
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                      "studentId": 0,
+                                      "name": "John",
+                                      "dateOfBirth": "2015-05-10",
+                                      "gender": "Male"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(studentService);
+    }
+
+
+    // DELETE STUDENT
+
+    @Test
+    void deleteStudent_shouldReturnNoContent_whenStudentExists()
+            throws Exception {
+
+        doNothing()
+                .when(studentService)
+                .deleteStudent(101);
+
+        mockMvc.perform(
+                        delete("/student-registration/101")
+                )
+                .andExpect(status().isNoContent());
+
+        verify(studentService)
+                .deleteStudent(101);
+    }
+
+
+    @Test
+    void deleteStudent_shouldReturnBadRequest_whenIdIsInvalid()
+            throws Exception {
+
+        mockMvc.perform(
+                        delete("/student-registration/0")
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(studentService);
     }
 }
